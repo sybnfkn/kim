@@ -31,6 +31,7 @@ type Handler struct {
 }
 
 // Accept this connection
+// 对于一个连接处理其连接合法性验证
 func (h *Handler) Accept(conn kim.Conn, timeout time.Duration) (string, kim.Meta, error) {
 	// 1. 读取登录包
 	_ = conn.SetReadDeadline(time.Now().Add(timeout))

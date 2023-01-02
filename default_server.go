@@ -96,8 +96,10 @@ func (s *DefaultServer) Start() error {
 		return fmt.Errorf("StateListener is nil")
 	}
 	if s.ChannelMap == nil {
+		// 就是创建一个默认的连接管理器，
 		s.ChannelMap = NewChannels(100)
 	}
+	// 启动连接监听
 	lst, err := net.Listen("tcp", s.listen)
 	if err != nil {
 		return err
@@ -110,6 +112,7 @@ func (s *DefaultServer) Start() error {
 	log.Info("started")
 
 	for {
+		// 获取新的连接
 		rawconn, err := lst.Accept()
 		if err != nil {
 			if rawconn != nil {
@@ -119,6 +122,7 @@ func (s *DefaultServer) Start() error {
 			continue
 		}
 
+		// 一个连接处理器
 		go s.connHandler(rawconn, mgpool)
 
 		if atomic.LoadInt32(&s.quit) == 1 {
@@ -142,6 +146,7 @@ func (s *DefaultServer) connHandler(rawconn net.Conn, gpool *ants.Pool) {
 		rawconn.Close()
 		return
 	}
+	// 处理登陆
 	id, meta, err := s.Accept(conn, s.options.Loginwait)
 	if err != nil {
 		_ = conn.WriteFrame(OpClose, []byte(err.Error()))
@@ -160,6 +165,7 @@ func (s *DefaultServer) connHandler(rawconn net.Conn, gpool *ants.Pool) {
 	channel := NewChannel(id, meta, conn, gpool)
 	channel.SetReadWait(s.options.Readwait)
 	channel.SetWriteWait(s.options.Writewait)
+	// 创建一个channel对象，并添加到连接管理中。
 	s.Add(channel)
 
 	gaugeWithLabel := channelTotalGauge.WithLabelValues(s.ServiceID(), s.ServiceName())
@@ -167,15 +173,19 @@ func (s *DefaultServer) connHandler(rawconn net.Conn, gpool *ants.Pool) {
 	defer gaugeWithLabel.Dec()
 
 	logger.Infof("accept channel - ID: %s RemoteAddr: %s", channel.ID(), channel.RemoteAddr())
+	// 核心的消息处理方法，一直监听消息即可了
 	err = channel.Readloop(s.MessageListener)
 	if err != nil {
 		logger.Info(err)
 	}
+	// 如果Readloop方法返回了一个error，说明连接已经断开，Server就需要把它从channelMap中删除，
+	// 并调用 (kim.StateListener).Disconnect(string)把断开事件回调给业务层
 	s.Remove(channel.ID())
 	_ = s.Disconnect(channel.ID())
 	channel.Close()
 }
 
+// 服务器关闭，将所有连接进行关闭
 // Shutdown Shutdown
 func (s *DefaultServer) Shutdown(ctx context.Context) error {
 	log := logger.WithFields(logger.Fields{

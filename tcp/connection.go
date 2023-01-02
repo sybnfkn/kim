@@ -9,7 +9,7 @@ import (
 	"github.com/klintcheng/kim/wire/endian"
 )
 
-// Frame Frame
+// Frame Frame    定义的一个包体协议
 type Frame struct {
 	OpCode  kim.OpCode
 	Payload []byte
@@ -43,7 +43,6 @@ type TcpConn struct {
 }
 
 // NewConn NewConn
-
 func NewConn(conn net.Conn) kim.Conn {
 	return &TcpConn{
 		Conn: conn,

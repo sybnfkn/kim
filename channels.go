@@ -6,7 +6,7 @@ import (
 	"github.com/klintcheng/kim/logger"
 )
 
-// ChannelMap ChannelMap
+// ChannelMap ChannelMap,Channel是对连接的包装
 type ChannelMap interface {
 	Add(channel Channel)
 	Remove(id string)

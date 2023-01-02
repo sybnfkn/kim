@@ -15,7 +15,7 @@ type ChannelImpl struct {
 	id string
 	Conn
 	meta      Meta
-	writechan chan []byte
+	writechan chan []byte //writechan的管道，发送的消息直接通过writechan发送给了一个独立的goruntine中writeloop()执行，这样就使得Push变成了一个线程安全方法。
 	writeWait time.Duration
 	readwait  time.Duration
 	gpool     *ants.Pool
@@ -46,6 +46,7 @@ func NewChannel(id string, meta Meta, conn Conn, gpool *ants.Pool) Channel {
 	return ch
 }
 
+// 一个独立的goruntine中writeloop()执行
 func (ch *ChannelImpl) writeloop() error {
 	log := logger.WithFields(logger.Fields{
 		"module": "ChannelImpl",
@@ -84,7 +85,7 @@ func (ch *ChannelImpl) Push(payload []byte) error {
 	if atomic.LoadInt32(&ch.state) != 1 {
 		return fmt.Errorf("channel %s has closed", ch.id)
 	}
-	// 异步写
+	// 异步写, 交给一个writeloop()执行， 在chan的读取那边
 	ch.writechan <- payload
 	return nil
 }
@@ -113,6 +114,7 @@ func (ch *ChannelImpl) SetReadWait(readwait time.Duration) {
 	ch.writeWait = readwait
 }
 
+// Readloop 把消息的读取和心跳处理的逻辑封装在一起。
 func (ch *ChannelImpl) Readloop(lst MessageListener) error {
 	if !atomic.CompareAndSwapInt32(&ch.state, 0, 1) {
 		return fmt.Errorf("channel has started")
@@ -125,6 +127,7 @@ func (ch *ChannelImpl) Readloop(lst MessageListener) error {
 	for {
 		_ = ch.SetReadDeadline(time.Now().Add(ch.readwait))
 
+		// kim.Conn中的ReadFrame()
 		frame, err := ch.ReadFrame()
 		if err != nil {
 			log.Info(err)
@@ -133,6 +136,7 @@ func (ch *ChannelImpl) Readloop(lst MessageListener) error {
 		if frame.GetOpCode() == OpClose {
 			return errors.New("remote side close the channel")
 		}
+		// 处理ping
 		if frame.GetOpCode() == OpPing {
 			log.Trace("recv a ping; resp with a pong")
 
@@ -145,6 +149,7 @@ func (ch *ChannelImpl) Readloop(lst MessageListener) error {
 			continue
 		}
 		err = ch.gpool.Submit(func() {
+			//MessageListener 用作消息处理
 			lst.Receive(ch, payload)
 		})
 		if err != nil {

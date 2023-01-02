@@ -24,6 +24,9 @@ func main() {
 	}
 	ctx := context.Background()
 
+	// go run main.go gateway
+	// go run main.go server
+	// go run main.go royal
 	root.AddCommand(gateway.NewServerStartCmd(ctx, version))
 	root.AddCommand(server.NewServerStartCmd(ctx, version))
 	root.AddCommand(service.NewServerStartCmd(ctx, version))

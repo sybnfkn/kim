@@ -45,11 +45,11 @@ type Server interface {
 	SetAcceptor(Acceptor)
 	//SetMessageListener 设置上行消息监听器
 	SetMessageListener(MessageListener)
-	//SetStateListener 设置连接状态监听服务
+	//SetStateListener 设置连接状态监听服务,将连接断开的事件上报给业务层，让业务层可以实现一些逻辑处理。
 	SetStateListener(StateListener)
-	// SetReadWait 设置读超时
+	// SetReadWait 设置读超时,用于控制心跳逻辑
 	SetReadWait(time.Duration)
-	// SetChannelMap 设置Channel管理服务
+	// SetChannelMap 设置Channel管理服务,设置一个连接管理器，Server在内部会自动管理连接的生命周期
 	SetChannelMap(ChannelMap)
 
 	// Start 用于在内部实现网络端口的监听和接收连接，
@@ -72,7 +72,7 @@ type Acceptor interface {
 
 // MessageListener 监听消息
 type MessageListener interface {
-	// 收到消息回调
+	// 收到消息回调, Receive方法中第一个参数Agent表示发送方
 	Receive(Agent, []byte)
 }
 
@@ -86,24 +86,28 @@ type Meta map[string]string
 
 // Agent is interface of client side
 type Agent interface {
-	ID() string
-	Push([]byte) error
+	ID() string        // ID : 返回连接的channelID。
+	Push([]byte) error // Push : 用于上层业务返回消息
 	GetMeta() Meta
 }
 
 // Conn Connection
+// 通过对net.Conn进行二次包装，把读与写的操作封装到连接中，因此我们定义一个kim.Conn接口，继承了net.Conn接口。
 type Conn interface {
 	net.Conn
+	// ReadFrame 与 WriteFrame，完成对websocket/tcp两种协议的封包与拆包逻辑的包装。
+	// 读一个完整的协议包
 	ReadFrame() (Frame, error)
+	// 写一个完整的协议包
 	WriteFrame(OpCode, []byte) error
 	Flush() error
 }
 
 // Channel is interface of client side
 type Channel interface {
-	Conn
+	Conn // kim.Conn
 	Agent
-	// Close 关闭连接
+	// Close 关闭连接,重写net.Conn中的Close方法
 	Close() error
 	Readloop(lst MessageListener) error
 	// SetWriteWait 设置写超时
@@ -114,9 +118,9 @@ type Channel interface {
 // Client is interface of client side
 type Client interface {
 	Service
-	// connect to server
+	// connect to server, 主动向一个服务器地址发起连接
 	Connect(string) error
-	// SetDialer 设置拨号处理器
+	// SetDialer 设置拨号处理器,设置一个拨号器，这个方法会在Connect中被调用，完成连接的建立和握手。
 	SetDialer(Dialer)
 	Send([]byte) error
 	Read() (Frame, error)
@@ -125,6 +129,9 @@ type Client interface {
 }
 
 // Dialer Dialer
+//Send：发送消息到服务端。
+//Read：读取一帧数据，这里底层复用了kim.Conn，所以直接返回Frame。
+//Close：断开连接，退出。
 type Dialer interface {
 	DialAndHandshake(DialerContext) (net.Conn, error)
 }
@@ -140,6 +147,7 @@ type DialerContext struct {
 type OpCode byte
 
 // Opcode type
+// 从Websocket协议抄过来的
 const (
 	OpContinuation OpCode = 0x0
 	OpText         OpCode = 0x1
@@ -150,8 +158,11 @@ const (
 )
 
 // Frame Frame
+// TCP协议是流式传输，通常需要上层业务处理拆包。
+//Websocket协议是基于Frame，在底层Server中就可以区分出每一个Frame，然后把Frame中的Payload交给上层。
+//通过抽象一个Frame接口来解决底层封包与拆包问题。
 type Frame interface {
-	SetOpCode(OpCode)
+	SetOpCode(OpCode) // OpCode表示操作类型
 	GetOpCode() OpCode
 	SetPayload([]byte)
 	GetPayload() []byte

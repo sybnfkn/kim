@@ -96,13 +96,14 @@ func RunServerStart(ctx context.Context, opts *ServerStartOptions, version strin
 		return err
 	}
 	container.SetServiceNaming(ns)
-	// set a dialer
+	// set a dialer      创建一个拨号器
 	container.SetDialer(serv.NewDialer(config.ServiceID))
-	// use routeSelector
+	// use routeSelector      路由选择器
 	selector, err := serv.NewRouteSelector(opts.route)
 	if err != nil {
 		return err
 	}
 	container.SetSelector(selector)
+	// 启动server
 	return container.Start()
 }
