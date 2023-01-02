@@ -14,6 +14,10 @@ import (
 
 const version = "v1"
 
+/**
+业务层：链路层+控制层
+代码在 /services/
+*/
 func main() {
 	flag.Parse()
 

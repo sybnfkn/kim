@@ -23,6 +23,14 @@ type ServerStartOptions struct {
 	config string
 }
 
+/**
+rpc服务就是Rest服务，在具体的业务逻辑（比如离线消息）中涉及到到这部分的代码逻辑。
+1.配置conf
+2.分布式ID生成器
+3.ORM层及Model
+4.缓存redis
+5.路由处理器handler
+*/
 // NewServerStartCmd creates a new http server command
 func NewServerStartCmd(ctx context.Context, version string) *cobra.Command {
 	opts := &ServerStartOptions{}

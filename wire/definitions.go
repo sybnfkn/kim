@@ -62,11 +62,12 @@ type ServiceID string
 // SessionID SessionID
 type SessionID string
 
+// 魔数来支持两种不同的协议。只要指定两个不同的魔数，就可以在网关层区分是基础协议还是逻辑协议
 type Magic [4]byte
 
 var (
-	MagicLogicPkt = Magic{0xc3, 0x11, 0xa3, 0x65}
-	MagicBasicPkt = Magic{0xc3, 0x15, 0xa7, 0x65}
+	MagicLogicPkt = Magic{0xc3, 0x11, 0xa3, 0x65} //逻辑协议
+	MagicBasicPkt = Magic{0xc3, 0x15, 0xa7, 0x65} //基础协议
 )
 
 const (

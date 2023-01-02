@@ -28,6 +28,9 @@ type ServerStartOptions struct {
 	serviceName string
 }
 
+/**
+逻辑服务与网关类似，不过在逻辑服务中，多了一些handler用于处理指令，与web系统中的controller类似。
+*/
 // NewServerStartCmd creates a new http server command
 func NewServerStartCmd(ctx context.Context, version string) *cobra.Command {
 	opts := &ServerStartOptions{}
